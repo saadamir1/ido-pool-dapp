@@ -1,13 +1,15 @@
 {
-  "name": "calculator-dapp",
+  "name": "ido-pool-dapp",
   "version": "1.0.0",
+  "description": "A decentralized application for Initial DEX Offering (IDO) token sales with ERC-20 payment integration and refund mechanisms.",
   "main": "index.js",
   "scripts": {
-  "test": "echo \"Error: no test specified\" && exit 1",
-  "start": "npx serve ."
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "dependencies": {
+    "http-server": "^14.1.1"
+  }
 }

@@ -65,6 +65,7 @@ contract IDOPool is Ownable, ReentrancyGuard {
      * @param _maxContribution Maximum contribution allowed per user
      */
     constructor(
+        address _initialOwner,
         address _idoToken,
         address _paymentToken,
         uint256 _tokenPrice,
@@ -72,7 +73,7 @@ contract IDOPool is Ownable, ReentrancyGuard {
         uint256 _hardCap,
         uint256 _minContribution,
         uint256 _maxContribution
-    ) {
+    ) Ownable(_initialOwner)  {
         require(_idoToken != address(0), "IDO token address cannot be zero");
         require(_paymentToken != address(0), "Payment token address cannot be zero");
         require(_tokenPrice > 0, "Token price must be greater than zero");
