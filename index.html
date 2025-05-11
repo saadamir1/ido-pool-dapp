@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IDO Pool DApp</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f1f8ff;
+            border-radius: 5px;
+        }
+        input, button, select {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            border: none;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .info {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .info-item {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px;
+            flex: 1;
+            min-width: 150px;
+        }
+        .status {
+            color: #0056b3;
+            font-weight: bold;
+        }
+        .error {
+            color: #d9534f;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>IDO Pool DApp</h1>
+        <div id="status" class="status">Connect MetaMask to get started...</div>
+        
+        <div class="section">
+            <h2>IDO Pool Info</h2>
+            <div class="info">
+                <div class="info-item">
+                    <div>IDO Token:</div>
+                    <div id="idoTokenAddress">-</div>
+                </div>
+                <div class="info-item">
+                    <div>Payment Token:</div>
+                    <div id="paymentTokenAddress">-</div>
+                </div>
+                <div class="info-item">
+                    <div>Token Price:</div>
+                    <div id="tokenPrice">-</div>
+                </div>
+                <div class="info-item">
+                    <div>Total Raised:</div>
+                    <div id="totalRaised">-</div>
+                </div>
+                <div class="info-item">
+                    <div>Soft Cap:</div>
+                    <div id="softCap">-</div>
+                </div>
+                <div class="info-item">
+                    <div>Hard Cap:</div>
+                    <div id="hardCap">-</div>
+                </div>
+                <div class="info-item">
+                    <div>Your Contribution:</div>
+                    <div id="userContribution">-</div>
+                </div>
+                <div class="info-item">
+                    <div>Status:</div>
+                    <div id="poolStatus">-</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Contribute</h2>
+            <input type="number" id="contributeAmount" placeholder="Amount of payment tokens">
+            <button id="contributeBtn">Contribute</button>
+            <button id="approveBtn">Approve Payment Token</button>
+        </div>
+        
+        <div class="section">
+            <h2>Actions</h2>
+            <button id="claimTokensBtn">Claim Tokens</button>
+            <button id="claimRefundBtn">Claim Refund</button>
+        </div>
+        
+        <div class="section" id="adminSection" style="display:none;">
+            <h2>Admin Actions</h2>
+            <button id="startIdoBtn">Start IDO</button>
+            <button id="endIdoBtn">End IDO</button>
+            <button id="enableRefundsBtn">Enable Refunds</button>
+            <button id="disableRefundsBtn">Disable Refunds</button>
+            <button id="withdrawFundsBtn">Withdraw Raised Funds</button>
+            <button id="withdrawUnsoldBtn">Withdraw Unsold Tokens</button>
+        </div>
+    </div>
+
+    <script>
+        // Contract addresses - replace with your deployed contracts
+        const idoPoolAddress = "0xYourIDOPoolContractAddress";
+        const idoPoolAbi = [
+            // Add your IDO Pool ABI here
+            {"inputs":[{"internalType":"address","name":"_idoToken","type":"address"},{"internalType":"address","name":"_paymentToken","type":"address"},{"internalType":"uint256","name":"_tokenPrice","type":"uint256"},{"internalType":"uint256","name":"_softCap","type":"uint256"},{"internalType":"uint256","name":"_hardCap","type":"uint256"},{"internalType":"uint256","name":"_minContribution","type":"uint256"},{"internalType":"uint256","name":"_maxContribution","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"Contributed","type":"event"},{"anonymous":false,"inputs":[],"name":"IDOEnded","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"startTime","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"endTime","type":"uint256"}],"name":"IDOStarted","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[],"name":"RefundDisabled","type":"event"},{"anonymous":false,"inputs":[],"name":"RefundEnabled","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RefundClaimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"TokensClaimed","type":"event"},{"inputs":[],"name":"calculateTokenAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"claimRefund","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"claimTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"claimTokens","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"contribute","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"contributions","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"disableRefunds","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"enableRefunds","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"endIDO","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"endTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"finalized","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"hardCap","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"hasClaimedRefund","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"hasClaimedTokens","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"idoToken","outputs":[{"internalType":"contract IERC20","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"maxContribution","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"minContribution","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"paymentToken","outputs":[{"internalType":"contract IERC20","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"refundAllowed","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"refundEnabled","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"softCap","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_startTime","type":"uint256"},{"internalType":"uint256","name":"_endTime","type":"uint256"},{"internalType":"uint256","name":"_claimTime","type":"uint256"}],"name":"startIDO","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"startTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"tokenPrice","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalRaised","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalTokensClaimed","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_newTokenPrice","type":"uint256"}],"name":"updateTokenPrice","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"withdrawRaisedFunds","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"withdrawUnsoldTokens","outputs":[],"stateMutability":"nonpayable","type":"function"}
+        ];
+        
+        const erc20Abi = [
+            // Basic ERC20 ABI
+            {"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transferFrom","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"owner","type":"address"},{"indexed":true,"name":"spender","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"from","type":"address"},{"indexed":true,"name":"to","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Transfer","type":"event"}
+        ];
+        
+        let web3, idoPoolContract, idoTokenContract, paymentTokenContract;
+        let accounts = [];
+        let isOwner = false;
+        
+        window.addEventListener('load', async () => {
+            if (window.ethereum) {
+                web3 = new Web3(window.ethereum);
+                try {
+                    // Request account access
+                    accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    document.getElementById('status').textContent = `Connected: ${accounts[0].substring(0, 6)}...${accounts[0].substring(38)}`;
+                    
+                    // Initialize contracts
+                    idoPoolContract = new web3.eth.Contract(idoPoolAbi, idoPoolAddress);
+                    
+                    // Check if user is owner
+                    const owner = await idoPoolContract.methods.owner().call();
+                    isOwner = (owner.toLowerCase() === accounts[0].toLowerCase());
+                    
+                    if (isOwner) {
+                        document.getElementById('adminSection').style.display = 'block';
+                    }
+                    
+                    // Initialize token contracts
+                    const idoTokenAddress = await idoPoolContract.methods.idoToken().call();
+                    const paymentTokenAddress = await idoPoolContract.methods.paymentToken().call();
+                    
+                    idoTokenContract = new web3.eth.Contract(erc20Abi, idoTokenAddress);
+                    paymentTokenContract = new web3.eth.Contract(erc20Abi, paymentTokenAddress);
+                    
+                    // Load pool info
+                    await loadPoolInfo();
+                    
+                    // Add event listeners
+                    setupEventListeners();
+                    
+                } catch (error) {
+                    console.error("User denied account access");
+                    document.getElementById('status').textContent = "Please connect with MetaMask";
+                }
+            } else {
+                console.error("MetaMask not detected");
+                document.getElementById('status').textContent = "MetaMask not detected";
+            }
+        });
+        
+        async function loadPoolInfo() {
+            try {
+                // Load IDO pool info
+                const [
+                    idoTokenAddress,
+                    paymentTokenAddress,
+                    tokenPrice,
+                    totalRaised,
+                    softCap,
+                    hardCap,
+                    startTime,
+                    endTime,
+                    refundEnabled
+                ] = await Promise.all([
+                    idoPoolContract.methods.idoToken().call(),
+                    idoPoolContract.methods.paymentToken().call(),
+                    idoPoolContract.methods.tokenPrice().call(),
+                    idoPoolContract.methods.totalRaised().call(),
+                    idoPoolContract.methods.softCap().call(),
+                    idoPoolContract.methods.hardCap().call(),
+                    idoPoolContract.methods.startTime().call(),
+                    idoPoolContract.methods.endTime().call(),
+                    idoPoolContract.methods.refundEnabled().call()
+                ]);
+                
+                // Get user contribution
+                const userContribution = await idoPoolContract.methods.contributions(accounts[0]).call();
+                
+                // Update UI
+                document.getElementById('idoTokenAddress').textContent = `${idoTokenAddress.substring(0, 6)}...${idoTokenAddress.substring(38)}`;
+                document.getElementById('paymentTokenAddress').textContent = `${paymentTokenAddress.substring(0, 6)}...${paymentTokenAddress.substring(38)}`;
+                document.getElementById('tokenPrice').textContent = web3.utils.fromWei(tokenPrice);
+                document.getElementById('totalRaised').textContent = web3.utils.fromWei(totalRaised);
+                document.getElementById('softCap').textContent = web3.utils.fromWei(softCap);
+                document.getElementById('hardCap').textContent = web3.utils.fromWei(hardCap);
+                document.getElementById('userContribution').textContent = web3.utils.fromWei(userContribution);
+                
+                // Determine pool status
+                const now = Math.floor(Date.now() / 1000);
+                let status = 'Not Started';
+                
+                if (refundEnabled) {
+                    status = 'Refunds Enabled';
+                } else if (now < startTime) {
+                    status = 'Not Started';
+                } else if (now >= startTime && now <= endTime) {
+                    status = 'Active';
+                } else if (now > endTime) {
+                    if (totalRaised < softCap) {
+                        status = 'Failed (Refund Available)';
+                    } else {
+                        status = 'Completed Successfully';
+                    }
+                }
+                
+                document.getElementById('poolStatus').textContent = status;
+                
+            } catch (error) {
+                console.error("Error loading pool info:", error);
+                document.getElementById('status').textContent = "Error loading pool info";
+            }
+        }
+        
+        function setupEventListeners() {
+            // Contribute button
+            document.getElementById('contributeBtn').addEventListener('click', async () => {
+                try {
+                    const amount = document.getElementById('contributeAmount').value;
+                    if (!amount || isNaN(amount) || amount <= 0) {
+                        alert('Please enter a valid amount');
+                        return;
+                    }
+                    
+                    const amountWei = web3.utils.toWei(amount);
+                    await idoPoolContract.methods.contribute(amountWei).send({ from: accounts[0] });
+                    
+                    document.getElementById('status').textContent = "Contribution successful!";
+                    loadPoolInfo();
+                } catch (error) {
+                    console.error("Contribution error:", error);
+                    document.getElementById('status').textContent = "Contribution failed: " + error.message;
+                }
+            });
+            
+            // Approve button
+            document.getElementById('approveBtn').addEventListener('click', async () => {
+                try {
+                    const amount = document.getElementById('contributeAmount').value;
+                    if (!amount || isNaN(amount) || amount <= 0) {
+                        alert('Please enter a valid amount to approve');
+                        return;
+                    }
+                    
+                    const amountWei = web3.utils.toWei(amount);
+                    const paymentTokenAddress = await idoPoolContract.methods.paymentToken().call();
+                    const paymentToken = new web3.eth.Contract(erc20Abi, paymentTokenAddress);
+                    
+                    await paymentToken.methods.approve(idoPoolAddress, amountWei).send({ from: accounts[0] });
+                    
+                    document.getElementById('status').textContent = "Token approval successful!";
+                } catch (error) {
+                    console.error("Token approval error:", error);
+                    document.getElementById('status').textContent = "Token approval failed: " + error.message;
+                }
+            });
+            
+            // Claim tokens button
+            document.getElementById('claimTokensBtn').addEventListener('click', async () => {
+                try {
+                    await idoPoolContract.methods.claimTokens().send({ from: accounts[0] });
+                    document.getElementById('status').textContent = "Tokens claimed successfully!";
+                    loadPoolInfo();
+                } catch (error) {
+                    console.error("Token claim error:", error);
+                    document.getElementById('status').textContent = "Token claim failed: " + error.message;
+                }
+            });
+            
+            // Claim refund button
+            document.getElementById('claimRefundBtn').addEventListener('click', async () => {
+                try {
+                    await idoPoolContract.methods.claimRefund().send({ from: accounts[0] });
+                    document.getElementById('status').textContent = "Refund claimed successfully!";
+                    loadPoolInfo();
+                } catch (error) {
+                    console.error("Refund claim error:", error);
+                    document.getElementById('status').textContent = "Refund claim failed: " + error.message;
+                }
+            });
+            
+            // Admin functions
+            if (isOwner) {
+                // Start IDO
+                document.getElementById('startIdoBtn').addEventListener('click', async () => {
+                    try {
+                        const now = Math.floor(Date.now() / 1000);
+                        const startTime = now + 300; // Start in 5 minutes
+                        const endTime = startTime + 86400; // End in 1 day
+                        const claimTime = endTime + 3600; // Claim after 1 hour
+                        
+                        await idoPoolContract.methods.startIDO(startTime, endTime, claimTime).send({ from: accounts[0] });
+                        
+                        document.getElementById('status').textContent = "IDO started successfully!";
+                        loadPoolInfo();
+                    } catch (error) {
+                        console.error("Start IDO error:", error);
+                        document.getElementById('status').textContent = "Start IDO failed: " + error.message;
+                    }
+                });
+                
+                // End IDO
+                document.getElementById('endIdoBtn').addEventListener('click', async () => {
+                    try {
+                        await idoPoolContract.methods.endIDO().send({ from: accounts[0] });
+                        document.getElementById('status').textContent = "IDO ended successfully!";
+                        loadPoolInfo();
+                    } catch (error) {
+                        console.error("End IDO error:", error);
+                        document.getElementById('status').textContent = "End IDO failed: " + error.message;
+                    }
+                });
+                
+                // Enable refunds
+                document.getElementById('enableRefundsBtn').addEventListener('click', async () => {
+                    try {
+                        await idoPoolContract.methods.enableRefunds().send({ from: accounts[0] });
+                        document.getElementById('status').textContent = "Refunds enabled successfully!";
+                        loadPoolInfo();
+                    } catch (error) {
+                        console.error("Enable refunds error:", error);
+                        document.getElementById('status').textContent = "Enable refunds failed: " + error.message;
+                    }
+                });
+                
+                // Disable refunds
+                document.getElementById('disableRefundsBtn').addEventListener('click', async () => {
+                    try {
+                        await idoPoolContract.methods.disableRefunds().send({ from: accounts[0] });
+                        document.getElementById('status').textContent = "Refunds disabled successfully!";
+                        loadPoolInfo();
+                    } catch (error) {
+                        console.error("Disable refunds error:", error);
+                        document.getElementById('status').textContent = "Disable refunds failed: " + error.message;
+                    }
+                });
+                
+                // Withdraw funds
+                document.getElementById('withdrawFundsBtn').addEventListener('click', async () => {
+                    try {
+                        await idoPoolContract.methods.withdrawRaisedFunds().send({ from: accounts[0] });
+                        document.getElementById('status').textContent = "Funds withdrawn successfully!";
+                        loadPoolInfo();
+                    } catch (error) {
+                        console.error("Withdraw funds error:", error);
+                        document.getElementById('status').textContent = "Withdraw funds failed: " + error.message;
+                    }
+                });
+                
+                // Withdraw unsold tokens
+                document.getElementById('withdrawUnsoldBtn').addEventListener('click', async () => {
+                    try {
+                        await idoPoolContract.methods.withdrawUnsoldTokens().send({ from: accounts[0] });
+                        document.getElementById('status').textContent = "Unsold tokens withdrawn successfully!";
+                        loadPoolInfo();
+                    } catch (error) {
+                        console.error("Withdraw unsold tokens error:", error);
+                        document.getElementById('status').textContent = "Withdraw unsold tokens failed: " + error.message;
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
